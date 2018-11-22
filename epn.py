@@ -3,37 +3,33 @@ import argparse
 import zmq
 
 parser = argparse.ArgumentParser()
-parser.add_argument("code")
 parser.add_argument("port")
-parser.add_argument("beat")
 args = parser.parse_args()
 
 context = zmq.Context()
-port_beat = "5556"
-ack_beat = "ack"
 
 
 def flp():
-    socket = context.socket(zmq.PAIR)
+    socket = context.socket(zmq.PULL)
     socket.bind("tcp://*:%s" % args.port)
 
     while True:
-        print("Received: {}".format(socket.recv().decode()))
+        data = socket.recv()
+        print("Received: {}".format(data))
 
 
 def icn():
     socket_beat = context.socket(zmq.SUB)
-    socket_beat.connect("tcp://localhost:%s" % port_beat)
-    socket_beat.setsockopt_string(zmq.SUBSCRIBE, ack_beat)
+    socket_beat.connect("tcp://localhost:%s" % "5556")
+    socket_beat.setsockopt_string(zmq.SUBSCRIBE, "")
 
-    socket_ack = context.socket(zmq.PAIR)
-    socket_ack.connect("tcp://localhost:%s" % args.beat)
+    socket_beat_send = context.socket(zmq.PUSH)
+    socket_beat_send.connect("tcp://localhost:%s" % "5555")
 
     while True:
-        ack = socket_beat.recv()
+        target = int(socket_beat.recv())
         print("Received Heartbeat")
-        socket_ack.send(str.encode("EPN {} is alive".format(args.code)))
-
+        socket_beat_send.send(str.encode("EPN {} is alive".format(args.port)))
 
 
 if __name__ == "__main__":

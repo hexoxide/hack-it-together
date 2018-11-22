@@ -1,24 +1,39 @@
 import argparse
-import time
 import zmq
 
 parser = argparse.ArgumentParser()
-parser.add_argument("code")
-parser.add_argument("ports", metavar="ports", type=int, nargs="+")
+parser.add_argument("ports", type=int, nargs="+")
 args = parser.parse_args()
 
 context = zmq.Context()
-sockets = []
+data = b"aaaaaaaa"
 
-for port in args.ports:
-    socket = context.socket(zmq.PAIR)
-    socket.connect("tcp://localhost:%s" % port)
-    sockets.append(socket)
 
-while True:
-    print("Sent Data")
+def epn():
+    socket_beat = context.socket(zmq.SUB)
+    socket_beat.connect("tcp://localhost:%s" % "5556")
+    socket_beat.setsockopt_string(zmq.SUBSCRIBE, "")
 
-    for socket in sockets:
-        socket.send(str.encode("Data from FLP {}".format(args.code)))
+    socket_beat_send = context.socket(zmq.PUSH)
+    socket_beat_send.connect("tcp://localhost:%s" % "5555")
 
-    time.sleep(1)
+    sockets = []
+
+    for port in args.ports:
+        print(port)
+        socket = context.socket(zmq.PUSH)
+        socket.connect("tcp://localhost:%s" % port)
+        sockets.append(socket)
+
+    while True:
+        target = int(socket_beat.recv())
+        print("Received Heartbeat")
+
+        print("Sending data to {}".format(sockets[target]))
+        sockets[target].send(data)
+
+        socket_beat_send.send(str.encode("FLP {} is alive".format(-1)))
+
+
+if __name__ == "__main__":
+    epn()
